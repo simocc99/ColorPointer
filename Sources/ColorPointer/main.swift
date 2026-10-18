@@ -17,6 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var preferences: PreferencesWindowController?
     private var isActive = false
 
+    private static let permissionAskedKey = "screenPermissionAsked"
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.image = NSImage(systemSymbolName: "eyedropper", accessibilityDescription: "Selettore colore")
@@ -42,6 +44,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         toggleMenuItem.target = self
         menu.addItem(toggleMenuItem)
         updateToggleMenuTitle()
+
+        let permission = NSMenuItem(title: "Permesso registrazione schermo…", action: #selector(openScreenRecordingSettings), keyEquivalent: "")
+        permission.target = self
+        menu.addItem(permission)
 
         menu.addItem(.separator())
 
@@ -82,8 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func activate() {
         guard !isActive else { return }
         guard CGPreflightScreenCaptureAccess() else {
-            CGRequestScreenCaptureAccess()
-            showPermissionAlert()
+            requestScreenPermissionOnce()
             return
         }
         isActive = true
@@ -124,6 +129,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: - Alerts
+
+    /// Asks for Screen Recording permission only the first time.
+    /// Afterwards the user can open the settings from the menu.
+    private func requestScreenPermissionOnce() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: AppDelegate.permissionAskedKey) else {
+            NSSound.beep()
+            return
+        }
+        defaults.set(true, forKey: AppDelegate.permissionAskedKey)
+        CGRequestScreenCaptureAccess()
+        showPermissionAlert()
+    }
+
+    @objc private func openScreenRecordingSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+            NSWorkspace.shared.open(url)
+        }
+    }
 
     private func showPermissionAlert() {
         let alert = NSAlert()

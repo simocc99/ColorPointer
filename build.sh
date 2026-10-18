@@ -15,8 +15,16 @@ mkdir -p "$APP/Contents/MacOS"
 cp "$BIN_DIR/ColorPointer" "$APP/Contents/MacOS/ColorPointer"
 cp "Resources/Info.plist" "$APP/Contents/Info.plist"
 
-# Ad-hoc signature (no Apple Developer account needed).
-codesign --force --sign - "$APP"
+# Sign with a stable Apple Development identity when available, so macOS keeps the
+# Screen Recording permission across rebuilds. Falls back to ad-hoc signing otherwise.
+IDENTITY="$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development/ {print $2; exit}')"
+if [ -n "$IDENTITY" ]; then
+    echo "Firma: $IDENTITY"
+    codesign --force --sign "$IDENTITY" "$APP"
+else
+    echo "Firma: ad-hoc (il permesso andrà ridato a ogni build)"
+    codesign --force --sign - "$APP"
+fi
 
 # Zip for sharing: the app plus the install guide for the recipient.
 # ditto keeps the signature and permissions intact.

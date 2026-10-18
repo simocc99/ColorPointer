@@ -13,7 +13,7 @@ Non vuoi compilarla? Scarica `ColorPointer.zip` dalla pagina [Releases](../../re
 
 ## Requisiti
 
-- macOS 13 o successivo
+- macOS 14 (Sonoma) o successivo
 - Xcode o Command Line Tools (per compilare)
 
 ## Compilazione

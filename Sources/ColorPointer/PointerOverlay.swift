@@ -1,26 +1,65 @@
 import AppKit
+import ScreenCaptureKit
 
-/// Reads the color of the single screen pixel under the mouse.
-/// Windows above the overlay are excluded, so the overlay never samples itself.
-enum ScreenSampler {
+/// Reads the color of the screen pixel under the mouse with ScreenCaptureKit.
+/// All windows of this app (the overlay and Preferences) are excluded, so the label never samples itself.
+final class ScreenSampler {
 
-    static func color(at mouseLocation: NSPoint, excludingWindow windowID: CGWindowID) -> NSColor? {
+    private var content: SCShareableContent?
+    private var filters: [CGDirectDisplayID: SCContentFilter] = [:]
+
+    /// Returns nil when the screen cannot be read (for example, no Screen Recording permission).
+    func color(at mouseLocation: NSPoint) async -> NSColor? {
         guard let primaryHeight = NSScreen.screens.first?.frame.height else { return nil }
 
-        // AppKit uses a bottom-left origin, CoreGraphics a top-left origin on the primary display.
-        let rect = CGRect(x: mouseLocation.x, y: primaryHeight - mouseLocation.y, width: 1, height: 1)
+        // AppKit uses a bottom-left origin, ScreenCaptureKit a top-left origin on the primary display.
+        let point = CGPoint(x: mouseLocation.x, y: primaryHeight - mouseLocation.y)
 
-        guard let image = CGWindowListCreateImage(
-            rect,
-            .optionOnScreenBelowWindow,
-            windowID,
-            [.bestResolution]
-        ) else { return nil }
+        if content == nil {
+            content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+        }
+        guard let content, let display = content.displays.first(where: { $0.frame.contains(point) }) else {
+            content = nil   // retry next time (display layout may have changed or permission was just granted)
+            return nil
+        }
 
+        let filter: SCContentFilter
+        if let cached = filters[display.displayID] {
+            filter = cached
+        } else {
+            let ownApps = content.applications.filter { $0.processID == getpid() }
+            filter = SCContentFilter(display: display, excludingApplications: ownApps, exceptingWindows: [])
+            filters[display.displayID] = filter
+        }
+
+        let config = SCStreamConfiguration()
+        // sourceRect is in display points, relative to the display's top-left corner
+        config.sourceRect = CGRect(
+            x: point.x - display.frame.minX,
+            y: point.y - display.frame.minY,
+            width: 1,
+            height: 1
+        )
+        config.width = 2
+        config.height = 2
+        config.showsCursor = false
+
+        guard let image = try? await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config) else {
+            return nil
+        }
         let rep = NSBitmapImageRep(cgImage: image)
         guard rep.pixelsWide > 0, rep.pixelsHigh > 0 else { return nil }
-        // On Retina the capture may be 2x2 pixels: take the one closest to the pointer.
-        return rep.colorAt(x: rep.pixelsWide / 2, y: rep.pixelsHigh / 2)
+
+        // Average all captured pixels: this removes per-pixel noise that made the name flicker
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, n: CGFloat = 0
+        for x in 0..<rep.pixelsWide {
+            for y in 0..<rep.pixelsHigh {
+                guard let c = rep.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { continue }
+                r += c.redComponent; g += c.greenComponent; b += c.blueComponent; n += 1
+            }
+        }
+        guard n > 0 else { return nil }
+        return NSColor(srgbRed: r / n, green: g / n, blue: b / n, alpha: 1)
     }
 }
 
@@ -30,6 +69,8 @@ final class PointerOverlay {
     private let panel: NSPanel
     private let labelView = ColorLabelView()
     private var timer: Timer?
+    private let sampler = ScreenSampler()
+    private var isSampling = false
 
     private let sampleRate: TimeInterval = 1.0 / 30.0   // 30 updates per second
     private let offset: CGFloat = 22
@@ -51,8 +92,6 @@ final class PointerOverlay {
         panel.contentView = labelView
     }
 
-    var windowID: CGWindowID { CGWindowID(panel.windowNumber) }
-
     func start() {
         panel.orderFrontRegardless()
         tick()
@@ -68,16 +107,27 @@ final class PointerOverlay {
     }
 
     private func tick() {
+        // Skip this tick if the previous capture is still running
+        guard !isSampling else { return }
+        isSampling = true
         let mouse = NSEvent.mouseLocation
-        let color = ScreenSampler.color(at: mouse, excludingWindow: windowID) ?? .gray
 
-        labelView.update(
-            name: ColorNamer.name(for: color),
-            hex: Settings.showHex ? ColorNamer.hex(for: color) : nil,
-            swatch: color,
-            scale: Settings.textScale
-        )
-        panel.setFrame(frame(for: labelView.intrinsicSize, near: mouse), display: true)
+        Task { @MainActor in
+            let color = await sampler.color(at: mouse)
+            isSampling = false
+
+            if let color {
+                labelView.update(
+                    name: ColorNamer.name(for: color),
+                    hex: Settings.showHex ? ColorNamer.hex(for: color) : nil,
+                    swatch: color,
+                    scale: Settings.textScale
+                )
+            } else {
+                labelView.update(name: "Nessun dato: controlla il permesso", hex: nil, swatch: .gray, scale: Settings.textScale)
+            }
+            panel.setFrame(frame(for: labelView.intrinsicSize, near: mouse), display: true)
+        }
     }
 
     /// Places the label to the lower-right of the pointer, flipping it when it would leave the screen.

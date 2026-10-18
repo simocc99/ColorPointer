@@ -16,12 +16,14 @@ enum ColorNamer {
         let value = maxV
         let saturation = maxV == 0 ? 0 : delta / maxV
 
-        // Achromatic colors: white, black, grays
-        if saturation < 0.12 {
+        // Achromatic colors: white, black, grays.
+        // Use the absolute spread between channels (delta), not the relative saturation:
+        // on dark colors a tiny tint gives a high saturation (e.g. 20/255 vs 30/255 looks "blue").
+        if delta < 0.12 || saturation < 0.12 {
             if value > 0.92 { return "bianco" }
-            if value < 0.12 { return "nero" }
+            if value < 0.06 { return "nero" }
             if value > 0.70 { return "grigio chiaro" }
-            if value < 0.35 { return "grigio scuro" }
+            if value < 0.40 { return "grigio scuro" }
             return "grigio"
         }
 
