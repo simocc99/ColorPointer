@@ -1,0 +1,60 @@
+SELETTORE COLORE (ColorPointer)
+================================
+
+Cosa fa
+-------
+Premi la scorciatoia (di default ⌘⌥4) e accanto al puntatore compare il nome
+del colore sotto il mouse, in italiano (es. "Rosso scuro", "Azzurro chiaro").
+Muovi il mouse e il nome cambia. Non ritaglia e non salva nulla.
+
+Per uscire: premi di nuovo la scorciatoia oppure Esc.
+L'app sta nella barra dei menu in alto (icona del contagocce).
+
+
+INSTALLAZIONE
+-------------
+
+1. Decomprimi il file ColorPointer.zip (doppio clic).
+2. Trascina ColorPointer.app nella cartella Applicazioni.
+3. Al primo avvio macOS potrebbe dire che l'app "non può essere aperta" o
+   che "proviene da uno sviluppatore non identificato". Per aprirla:
+
+   - Vai in Applicazioni, fai clic destro (o Ctrl + clic) su ColorPointer
+     e scegli "Apri". Poi conferma con "Apri".
+
+   Se non compare il pulsante "Apri":
+   - Apri Impostazioni di Sistema › Privacy e sicurezza.
+   - Scorri in fondo: troverai "ColorPointer è stato bloccato..."
+     Clicca "Apri comunque" e conferma.
+
+   Questa procedura serve una sola volta.
+
+
+PERMESSO "REGISTRAZIONE DELLO SCHERMO" (obbligatorio)
+------------------------------------------------------
+Per leggere il colore sotto il puntatore, macOS chiede questo permesso:
+
+1. Impostazioni di Sistema › Privacy e sicurezza › Registrazione dello schermo
+2. Attiva l'interruttore accanto a ColorPointer.
+3. Chiudi e riapri ColorPointer.
+
+Il permesso serve solo a leggere il colore del pixel sotto il mouse.
+L'app non invia nulla su internet.
+
+
+USO
+---
+- Scorciatoia: ⌘⌥4 (⌘ = Command, ⌥ = Option/Alt)
+- Icona nella barra dei menu › Preferenze… per:
+  - cambiare la scorciatoia (premi il pulsante, poi la nuova combinazione;
+    deve includere ⌘, ⌥ o ⌃; Esc annulla),
+  - mostrare anche il codice esadecimale (#RRGGBB),
+  - ingrandire il testo (Grande / Molto grande).
+
+
+SE QUALCOSA NON FUNZIONA
+------------------------
+- Il nome non cambia o compare sempre "Grigio/Nero": controlla il permesso
+  "Registrazione dello schermo" e riavvia l'app.
+- La scorciatoia non risponde: probabilmente è già usata dal sistema o da
+  un'altra app. Scegline un'altra in Preferenze.
